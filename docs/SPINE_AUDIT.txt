@@ -1,0 +1,6 @@
+SPINE Audit — Job Search OS
+  Stage         : scoping
+  Health score  : 100/100  (grade A)
+  Gates passing : 18/18 hard · 0 warnings
+
+No blockers — project meets every hard gate.

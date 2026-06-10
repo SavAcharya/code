@@ -1,0 +1,318 @@
+schema_version: 2.0.0
+project:
+  id: job-search-os
+  name: Job Search OS
+  sponsor: Sourav
+  scope_mode: selective_expansion
+  lifecycle_stage: scoping
+  graph_version: d2e1bad7e20a2b56
+  dependencies: []
+problem:
+  out_of_scope:
+  - Negotiation coach
+  - LinkedIn auto-posting
+  - Multi-tenant / auth
+  - Curated course library
+  - Automated application-status detection (tracking is manual entry by design)
+  who_hurts:
+  - who: Sourav
+    pain: manual, scattered job hunt; no structured per-stage interview prep, so screens
+      don't convert to offers
+  pinpoint_status:
+    status: sufficient
+    questions_answered:
+    - S1
+    - S2
+    - S3
+    - S4
+    - S5
+  pre_mortem:
+    completed_at: null
+  statement: 'Job Search OS helps Sourav find roles, apply, and track every application
+    via manual entry as the single source of truth. Its growth value: as an application
+    advances through interview stages, the system delivers stage-specific preparation
+    and coaching so Sourav converts screens into offers.'
+understanding_check:
+  status: confirmed
+  iteration_count: 1
+  confirmed_by: user
+requirements:
+- id: M1
+  moscow: must
+  title: Manual-entry application tracker
+  text: 'Tracker is the source of truth: find/apply logged by manual entry, moved
+    across stages (Saved → Applied → Screen → Onsite → Offer/Rejected), with rejection/approval
+    recorded manually.'
+  verified_by_stories:
+  - US1
+- id: M2
+  moscow: must
+  title: Stage-based interview prep & coaching
+  text: When an application advances to an interview stage, the system generates stage-specific
+    preparation and coaching (technical drills from JD gaps + behavioral/STAR coaching)
+    for that role.
+  verified_by_stories:
+  - US2
+- id: S1r
+  moscow: should
+  title: Funnel metrics
+  text: Tracker shows stage_entered_at, days-in-stage, and stage-conversion rates.
+  verified_by_stories: []
+user_stories:
+- story_id: US1
+  parent_id: FT1
+  title: Manual tracker with stage transitions
+  user_story: As a candidate, I want to log and move applications by hand so that
+    the tracker is my single source of truth.
+  priority: 1
+  risk: 2
+  story_points: 8
+  value_area: Business
+  acceptance_criteria:
+  - Given a new role, when I add it, then it is saved with company/role/JD/match score
+  - Given an application, when I advance it, then it moves Saved→Applied→Screen→Onsite→Offer/Rejected
+  - Given a stage change, when it occurs, then stage_entered_at is recorded
+- story_id: US2
+  parent_id: FT2
+  title: Generate stage prep on advance
+  user_story: As a candidate, I want stage-specific prep when I advance an application
+    so that I convert screens into offers.
+  priority: 1
+  risk: 1
+  story_points: 16
+  value_area: Business
+  acceptance_criteria:
+  - Given an app advanced to Screen/Onsite, when prep is requested, then technical
+    drills are generated from JD missing_keywords
+  - Given a role, when prep runs, then behavioral STAR coaching prompts are generated
+  - Given generated prep, when created, then it persists against application+stage
+scope_brief_review:
+  status: approved
+  scope_field_keys: []
+  approved_by: Sourav
+  approved_against_graph_version: a8130cd83d9225e0
+architecture:
+  status: confirmed
+  components:
+  - name: frontend
+    tech: Vue 3 + Vite + Pinia
+    source: confirmed from repo
+  - name: backend
+    tech: FastAPI + Python 3.12 + SQLAlchemy(async)
+    source: confirmed from repo
+  - name: database
+    tech: PostgreSQL 15
+    source: confirmed from repo
+  - name: cache
+    tech: Redis 7
+    source: confirmed from repo
+  - name: llm
+    tech: Ollama (qwen generator, gemma judge-fallback) + Gemini (primary judge)
+    source: confirmed from repo
+  patterns:
+  - SPA + REST API
+  - provider-abstracted LLM orchestration
+  - generator != judge invariant
+  - content-hash result caching (24h TTL)
+  data_model:
+  - Application (+stage, stage_entered_at)
+  - Resume (versioned)
+  - Profile
+  - StagePrep (application+stage keyed)
+  api_contracts:
+  - /matcher
+  - /cover
+  - /discover
+  - /tracker
+  - /profile
+  - /resumes
+  - + stage-prep endpoint (new)
+testing:
+  status: passing
+  framework: pytest + pytest-asyncio
+  suites:
+  - test_llm_router.py (generator!=judge invariant, fallback chains)
+  - test_cache.py (hash determinism, key format, error-swallowing)
+  result: 12 passed
+  strategy_ref: docs/TEST_STRATEGY.md
+deployment:
+  status: ready
+  environments:
+  - Docker Compose
+  runbook_ref: docs/RUNBOOK.md
+global_invariants: []
+artifacts: []
+orchestrator_log:
+- action: ingest_repo
+  detail: 'scanned /sessions/modest-sharp-curie/mnt/JOB Search/code: 2 components,
+    stack=[], tests=False, ci=False'
+  stage: scoping
+- action: step_confirmed
+  detail: S1 backfilled from BA review; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: S2 backfilled from BA review; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: S3 backfilled from BA review; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: S4 backfilled from BA review; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: S5 backfilled from BA review; confirmed by Sourav
+  stage: scoping
+- action: scope_brief_approved
+  detail: Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: P1 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: P2 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: P3 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: P4 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: P5 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: P6 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: I1 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: I2 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: I3 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: I4 backfilled from BA review + README; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: E1 tests written and passing; confirmed by Sourav
+  stage: scoping
+- action: step_confirmed
+  detail: E2 tests written and passing; confirmed by Sourav
+  stage: scoping
+technical:
+  stack:
+    backend: FastAPI / Python 3.12
+    frontend: Vue 3 / Vite
+    db: PostgreSQL
+    cache: Redis
+    llm: Ollama + Gemini
+step_ledger:
+  I2:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  E2:
+    status: confirmed
+    by: user
+    risk: ''
+    note: tests written and passing; confirmed by Sourav
+  S1:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review; confirmed by Sourav
+  S2:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review; confirmed by Sourav
+  S3:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review; confirmed by Sourav
+  S4:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review; confirmed by Sourav
+  S5:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review; confirmed by Sourav
+  P1:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  P2:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  P3:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  P4:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  P5:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  P6:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  I1:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  I3:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  I4:
+    status: confirmed
+    by: user
+    risk: ''
+    note: backfilled from BA review + README; confirmed by Sourav
+  E1:
+    status: confirmed
+    by: user
+    risk: ''
+    note: tests written and passing; confirmed by Sourav
+epics:
+- id: EP1
+  title: Closed-loop hunt & interview coaching
+  priority: 1
+  risk: 2
+features:
+- id: FT1
+  parent_id: EP1
+  title: Manual application tracker
+  priority: 1
+  risk: 2
+  acceptance_criteria:
+  - Applications created and moved across stages by hand
+  - stage_entered_at recorded on every transition
+- id: FT2
+  parent_id: EP1
+  title: Stage-based prep & coaching
+  priority: 1
+  risk: 1
+  acceptance_criteria:
+  - Advancing to an interview stage generates prep for that stage
+  - Prep persists against application+stage
