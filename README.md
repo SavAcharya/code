@@ -47,7 +47,9 @@ OLLAMA_HOST=0.0.0.0:11435 OLLAMA_ORIGINS="*" ollama serve  # terminal 2
 
 # 2. Configure
 cp .env.example .env
-# Add your GEMINI_API_KEY (optional — system works without it)
+# Edit .env to choose the model combination you want:
+# BASE_MODEL, FALLBACK_MODEL, JUDGE_MODEL, JUDGE_PROVIDER, and OLLAMA_*_HOST.
+# Add your GEMINI_API_KEY if you set JUDGE_PROVIDER=gemini.
 
 # 3. Launch
 docker compose up --build

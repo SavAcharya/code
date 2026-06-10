@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 from .schemas import Complexity, Role
 from .providers import LLMProvider, OllamaProvider, GeminiProvider
@@ -35,66 +35,90 @@ class LLMRouter:
     """
 
     def __init__(self):
-        self.qwen = OllamaProvider(
-            host=settings.ollama_generator_host,
-            model=settings.ollama_generator_model,
-            name_suffix="-generator"
+        self.base = OllamaProvider(
+            host=settings.ollama_base_host,
+            model=settings.base_model,
+            name_suffix="-base"
         )
-        self.gemma = OllamaProvider(
-            host=settings.ollama_judge_host,
-            model=settings.ollama_judge_model,
-            name_suffix="-judge"
+        self.fallback = OllamaProvider(
+            host=settings.ollama_fallback_host,
+            model=settings.fallback_model,
+            name_suffix="-fallback"
         )
+        self.qwen = self.base
+        self.gemma = self.fallback
+
         self.gemini = GeminiProvider(
             api_key=settings.gemini_api_key,
-            model=settings.gemini_model
-        ) if settings.gemini_api_key else None
+            model=settings.judge_model
+        ) if settings.judge_provider == "gemini" and settings.gemini_api_key else None
+
+        self.judge = None
+        if settings.judge_provider == "ollama":
+            self.judge = OllamaProvider(
+                host=settings.ollama_judge_host,
+                model=settings.judge_model,
+                name_suffix="-judge"
+            )
+        elif settings.judge_provider == "gemini":
+            self.judge = self.gemini
 
     def get_route(self, task: str) -> RouteConfig:
         return ROUTES.get(task, RouteConfig("qwen", "judge", Complexity.HIGH, True, False))
 
     async def select_generator(self) -> LLMProvider:
-        """Primary: qwen. Fallback: gemma."""
-        if await self.qwen.health_check():
-            return self.qwen
-        logger.warning("qwen unhealthy, falling back to gemma as generator")
-        if await self.gemma.health_check():
-            return self.gemma
+        """Primary: base model. Fallback: configured fallback model."""
+        if await self.base.health_check():
+            return self.base
+        logger.warning("Base generator unhealthy, falling back to configured fallback model")
+        if await self.fallback.health_check():
+            return self.fallback
         raise RuntimeError("No healthy generator available")
 
-    async def select_judge(self, generator_model_id: str) -> tuple[LLMProvider, str]:
+    async def select_judge(self, generator_model_id: str) -> tuple[Optional[LLMProvider], str]:
         """
-        Primary: Gemini. Fallback: gemma (if generator wasn't gemma).
+        Primary: configured judge model. Falls back to the configured fallback model only if independent.
         Returns (provider, quality) where quality is "full" or "degraded".
         """
-        # Try Gemini first — always independent from Ollama generators
-        if self.gemini and await self.gemini.health_check():
-            return self.gemini, "full"
+        if self.judge and await self.judge.health_check():
+            if self.judge.model_id().lower() != generator_model_id.lower():
+                return self.judge, "full"
+            logger.warning("Configured judge model matches generator model; cannot use it")
 
-        # Fallback to gemma — but ONLY if generator wasn't gemma
-        if "gemma" not in generator_model_id.lower():
-            if await self.gemma.health_check():
-                logger.warning("Gemini unavailable, using gemma as judge (different from generator)")
-                return self.gemma, "degraded"
+        if self.fallback and await self.fallback.health_check():
+            if self.fallback.model_id().lower() != generator_model_id.lower():
+                logger.warning("Using configured fallback model as judge because judge model is unavailable or invalid")
+                return self.fallback, "degraded"
 
-        # Last resort: log and return None
         logger.error(
-            "No independent judge available. Generator=%s, Gemini=%s, Gemma=%s",
+            "No independent judge available. Generator=%s, Judge=%s, Fallback=%s",
             generator_model_id,
-            "no key" if not self.gemini else "unhealthy",
-            "same as generator" if "gemma" in generator_model_id.lower() else "unhealthy"
+            self.judge.model_id() if self.judge else "none",
+            self.fallback.model_id(),
         )
         return None, "unavailable"
 
     async def get_status(self) -> dict:
         return {
-            "qwen": {"host": settings.ollama_generator_host, "model": settings.ollama_generator_model,
-                     "healthy": await self.qwen.health_check()},
-            "gemma": {"host": settings.ollama_judge_host, "model": settings.ollama_judge_model,
-                     "healthy": await self.gemma.health_check()},
-            "gemini": {"model": settings.gemini_model,
-                      "healthy": await self.gemini.health_check() if self.gemini else False,
-                      "enabled": bool(settings.gemini_api_key)},
+            "base": {
+                "host": settings.ollama_base_host,
+                "model": settings.base_model,
+                "healthy": await self.base.health_check()
+            },
+            "fallback": {
+                "host": settings.ollama_fallback_host,
+                "model": settings.fallback_model,
+                "healthy": await self.fallback.health_check()
+            },
+            "judge": {
+                "provider": settings.judge_provider,
+                "model": settings.judge_model,
+                "healthy": await self.judge.health_check() if self.judge else False,
+            },
+            "gemini": {
+                "enabled": bool(settings.gemini_api_key),
+                "model": settings.gemini_model,
+            },
         }
 
 
