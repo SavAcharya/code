@@ -88,15 +88,17 @@ Return ONLY JSON:
                 judge_raw = await judge_provider.generate(JUDGE_SYSTEM, judge_prompt, temperature=0.3)
             except Exception as e:
                 logger.error(f"Judge failed: {e}")
-                if judge_provider is router.gemini and "gemma" not in generator.model_id().lower():
+                fallback_candidate = None
+                if router.fallback and await router.fallback.health_check():
+                    if router.fallback.model_id().lower() != generator.model_id().lower():
+                        fallback_candidate = router.fallback
+
+                if fallback_candidate is not None and fallback_candidate is not judge_provider:
                     try:
-                        if await router.gemma.health_check():
-                            judge_provider = router.gemma
-                            quality = "degraded"
-                            logger.warning("Gemini judge failed, falling back to gemma")
-                            judge_raw = await judge_provider.generate(JUDGE_SYSTEM, judge_prompt, temperature=0.3)
-                        else:
-                            raise
+                        judge_provider = fallback_candidate
+                        quality = "degraded"
+                        logger.warning("Primary judge failed, falling back to configured fallback model as judge")
+                        judge_raw = await judge_provider.generate(JUDGE_SYSTEM, judge_prompt, temperature=0.3)
                     except Exception as fallback_error:
                         logger.error(f"Fallback judge failed: {fallback_error}")
                         judge_result = JudgeResult(
